@@ -37,22 +37,12 @@ jobs:
       - name: Install Python deps
         run: pip install -r requirements.txt
 
-      # 🔥 還原 rclone.conf（方法 B）
       - name: Restore rclone config
         env:
           RCLONE_CONFIG_CONTENT: ${{ secrets.RCLONE_CONFIG }}
         run: |
           mkdir -p "$HOME/.config/rclone"
-          python - << 'EOF'
-import os, pathlib
-path = pathlib.Path.home() / ".config/rclone/rclone.conf"
-path.write_text(os.environ["RCLONE_CONFIG_CONTENT"])
-print("rclone config written:", path)
-EOF
-
-      # 🔍 確認 remote 名稱
-      - name: Check rclone remotes
-        run: |
+          printf '%s' "$RCLONE_CONFIG_CONTENT" > "$HOME/.config/rclone/rclone.conf"
           rclone listremotes
 
       - name: Download MP3
@@ -69,7 +59,6 @@ EOF
           echo "Downloaded files:"
           find downloads -type f || true
 
-      # 🔥 用正確 remote 名稱（drive）
       - name: Upload to Google Drive via rclone
         run: |
           rclone copy downloads drive:freeaswind \
