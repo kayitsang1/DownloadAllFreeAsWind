@@ -10,11 +10,11 @@ on:
       end_date:
         description: "End date"
         required: true
-        default: "2026-05-08"
+        default: "2026-05-09"
       max_pages:
         description: "Max pages"
         required: true
-        default: "10"
+        default: "40"
 
 jobs:
   download:
@@ -24,10 +24,10 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Install ffmpeg
+      - name: Install ffmpeg and rclone
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg
+          sudo apt-get install -y ffmpeg rclone
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -37,17 +37,32 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
-      - name: Scan, download MP3, and upload to Google Drive
-        env:
-          GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
-          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+      - name: Restore rclone config
+        run: |
+          mkdir -p ~/.config/rclone
+          echo "${{ secrets.RCLONE_CONFIG }}" | base64 -d > ~/.config/rclone/rclone.conf
+          rclone listremotes
+
+      - name: Download MP3 files
         run: |
           python scripts/scan_rthk.py \
             --start "${{ github.event.inputs.start_date }}" \
             --end "${{ github.event.inputs.end_date }}" \
             --max-pages "${{ github.event.inputs.max_pages }}" \
             --download \
-            --drive-upload
+            --download-dir downloads
+
+      - name: Show downloaded files
+        run: |
+          find downloads -type f -maxdepth 2 || true
+
+      - name: Upload MP3 files to Google Drive with rclone
+        run: |
+          rclone copy downloads gdrive:freeaswind \
+            --drive-chunk-size 64M \
+            --transfers 2 \
+            --checkers 4 \
+            --progress
 
       - name: Upload CSV logs
         uses: actions/upload-artifact@v4
