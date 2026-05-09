@@ -37,13 +37,12 @@ jobs:
       - name: Install Python deps
         run: pip install -r requirements.txt
 
-      # 🔥 方法 B：直接寫入 rclone.conf（不做 base64）
       - name: Restore rclone config
+        env:
+          RCLONE_CONFIG_CONTENT: ${{ secrets.RCLONE_CONFIG }}
         run: |
           mkdir -p ~/.config/rclone
-          cat > ~/.config/rclone/rclone.conf << 'EOF'
-${{ secrets.RCLONE_CONFIG }}
-EOF
+          printf '%s\n' "$RCLONE_CONFIG_CONTENT" > ~/.config/rclone/rclone.conf
           rclone listremotes
 
       - name: Download MP3
