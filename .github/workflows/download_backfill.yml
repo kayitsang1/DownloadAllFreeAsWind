@@ -37,26 +37,46 @@ jobs:
       - name: Install Python deps
         run: pip install -r requirements.txt
 
+      # 🔥 還原 rclone.conf（方法 B）
       - name: Restore rclone config
         env:
           RCLONE_CONFIG_CONTENT: ${{ secrets.RCLONE_CONFIG }}
         run: |
           mkdir -p "$HOME/.config/rclone"
-          python -c "import os, pathlib; pathlib.Path(os.path.expanduser('~/.config/rclone/rclone.conf')).write_text(os.environ['RCLONE_CONFIG_CONTENT'])"
+          python - << 'EOF'
+import os, pathlib
+path = pathlib.Path.home() / ".config/rclone/rclone.conf"
+path.write_text(os.environ["RCLONE_CONFIG_CONTENT"])
+print("rclone config written:", path)
+EOF
+
+      # 🔍 確認 remote 名稱
+      - name: Check rclone remotes
+        run: |
           rclone listremotes
 
       - name: Download MP3
         run: |
-          python scripts/scan_rthk.py --start "${{ github.event.inputs.start_date }}" --end "${{ github.event.inputs.end_date }}" --max-pages "${{ github.event.inputs.max_pages }}" --download --download-dir downloads
+          python scripts/scan_rthk.py \
+            --start "${{ github.event.inputs.start_date }}" \
+            --end "${{ github.event.inputs.end_date }}" \
+            --max-pages "${{ github.event.inputs.max_pages }}" \
+            --download \
+            --download-dir downloads
 
       - name: Show downloaded files
         run: |
           echo "Downloaded files:"
           find downloads -type f || true
 
+      # 🔥 用正確 remote 名稱（drive）
       - name: Upload to Google Drive via rclone
         run: |
-          rclone copy downloads gdrive:freeaswind --drive-chunk-size 64M --transfers 2 --checkers 4 --progress
+          rclone copy downloads drive:freeaswind \
+            --drive-chunk-size 64M \
+            --transfers 2 \
+            --checkers 4 \
+            --progress
 
       - name: Upload logs
         uses: actions/upload-artifact@v4
