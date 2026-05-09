@@ -486,9 +486,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-Thank you.
-
-    Best Regards,
-
-Tsang Ka Yi
