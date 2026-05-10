@@ -4,31 +4,33 @@ on:
   workflow_dispatch:
     inputs:
       start_date:
+        description: "Start date"
         required: true
         default: "2026-04-01"
       end_date:
+        description: "End date"
         required: true
         default: "2026-05-09"
       max_pages:
+        description: "Max pages"
         required: true
         default: "20"
-      remote_name:
-        required: true
-        default: "gdrive"
 
 jobs:
   download:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
       - name: Install ffmpeg and rclone
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg rclone
 
-      - uses: actions/setup-python@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -42,7 +44,6 @@ jobs:
           mkdir -p "$HOME/.config/rclone"
           printf '%s\n' "$RCLONE_CONFIG_CONTENT" > "$HOME/.config/rclone/rclone.conf"
           echo "Defined rclone remotes:"
-          grep -E '^\[[^]]+\]' "$HOME/.config/rclone/rclone.conf" || true
           rclone listremotes
 
       - name: Download MP3
@@ -54,9 +55,14 @@ jobs:
             --download \
             --download-dir downloads
 
+      - name: Show downloaded files
+        run: |
+          echo "Downloaded files:"
+          find downloads -type f || true
+
       - name: Upload to Google Drive via rclone
         run: |
-          rclone copy downloads "${{ github.event.inputs.remote_name }}:freeaswind" \
+          rclone copy downloads "drive:freeaswind" \
             --drive-chunk-size 64M \
             --transfers 2 \
             --checkers 4 \
